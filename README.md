@@ -147,8 +147,8 @@ query {
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/social-media-backend.git
-cd social-media-backend
+git clone git@github.com:shady-cj/alx-project-nexus.git
+cd api
 ```
 
 2. **Set up virtual environment**
