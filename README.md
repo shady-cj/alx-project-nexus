@@ -1,21 +1,20 @@
-# alx-project-nexus
 # Social Media Backend API
 
 A scalable GraphQL-based backend system for managing social media posts and user interactions, built as part of the ProDev Backend Engineering program.
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [ProDev Program Context](#prodev-program-context)
-- [Project Goals](#project-goals)
-- [Technologies Used](#technologies-used)
-- [Key Features](#key-features)
-- [Getting Started](#getting-started)
-- [API Documentation](#api-documentation)
-- [Implementation Highlights](#implementation-highlights)
-- [Challenges & Solutions](#challenges--solutions)
-- [Best Practices & Takeaways](#best-practices--takeaways)
-- [Future Enhancements](#future-enhancements)
+- [Overview](#-overview)
+- [ProDev Program Context](#-prodev-program-context)
+- [Project Goals](#-project-goals)
+- [Technologies Used](#-technologies-used)
+- [Key Features](#-key-features)
+- [Getting Started](#-getting-started)
+- [API Documentation](#-api-documentation)
+- [Implementation Highlights](#-implementation-highlights)
+- [Challenges & Solutions](#-challenges--solutions)
+- [Best Practices & Takeaways](#-best-practices--takeaways)
+- [Future Enhancements](#-future-enhancements)
 
 ## 🎯 Overview
 
@@ -147,8 +146,8 @@ query {
 
 1. **Clone the repository**
 ```bash
-git clone git@github.com:shady-cj/alx-project-nexus.git
-cd api
+git clone https://github.com/yourusername/social-media-backend.git
+cd social-media-backend
 ```
 
 2. **Set up virtual environment**
