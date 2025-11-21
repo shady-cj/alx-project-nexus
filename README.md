@@ -224,7 +224,14 @@ docker-compose up --build
 - `id`: Unique identifier
 - `user`: Foreign key to User
 - `post`: Foreign key to Post
-- `interaction_type`: Enum (LIKE, SHARE)
+- `type`: Enum (LIKE, SHARE, COMMENT)
+- `created_at`: Timestamp
+
+**Post Media Model**
+- `id`: Unique identifier
+- `post`: Foreign Key to Post
+- `media_url`: URL field for attachment/media
+- `type`: Enum (PHOTO, VIDEO, GIF)
 - `created_at`: Timestamp
 
 ### Sample Queries & Mutations
