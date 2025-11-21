@@ -196,16 +196,25 @@ docker-compose up --build
 ## 📚 API Documentation
 
 ### Core Models
-<img width="2229" height="1098" alt="Social Media API ERD" src="https://github.com/user-attachments/assets/35bd2bcd-6e98-4f04-beae-e4df87e55d9d" />
+<img width="2243" height="1681" alt="Social Media API ERD" src="https://github.com/user-attachments/assets/1c0918eb-d2e8-4fa1-ae1f-44cd1c12fe73" />
+
 
 
 **User Model**
 - `id`: Unique identifier
 - `username`: Unique username
 - `email`: User email address
-- `bio`: User biography
 - `created_at`: Timestamp
 - `updated_at`: Timestamp
+- `profile`: Foreign key to user Profile 
+
+**Profile Model**
+- `id`: Unique identifier
+- `first_name`: First name
+- `last_name`: Last name
+- `profile_photo`: Profile Photo
+- `bio`: User bio
+- `preferences`: set of user preferences.
 
 **Post Model**
 - `id`: Unique identifier
