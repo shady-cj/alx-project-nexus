@@ -196,7 +196,8 @@ docker-compose up --build
 ## 📚 API Documentation
 
 ### Core Models
-<img width="2309" height="1627" alt="Social Media API ERD" src="https://github.com/user-attachments/assets/17670f26-2dce-4c52-baa1-6768464097db" />
+
+<img width="2309" height="1627" alt="Social Media API" src="https://github.com/user-attachments/assets/bb649e4e-9f0b-4fd7-932d-33eb3661bc13" />
 
 
 
