@@ -4,6 +4,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 from .models import Profile, Post, PostMedia, Interaction, Follow
 from graphql import GraphQLError
 from django.utils import timezone
+from graphql_jwt.decorators import login_required
 
 from django.contrib.auth import get_user_model
 
@@ -122,6 +123,7 @@ class UpdateProfile(graphene.Mutation):
         bio = graphene.String(required=False)
         preferences = graphene.JSONString(required=False)
 
+    @login_required
     def mutate(self, info, first_name=None, last_name=None, profile_photo=None, bio=None, preferences=None):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
@@ -151,6 +153,7 @@ class CreatePost(graphene.Mutation):
         parent_post_id = graphene.UUID(required=False)
         post_medias = graphene.List(PostMediaInput)
 
+    @login_required
     def mutate(self, info, content, is_published=False, parent_post_id=None, post_medias=None):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
@@ -186,7 +189,7 @@ class UpdatePost(graphene.Mutation):
         post_id = graphene.UUID(required=True)
         content = graphene.String(required=False)
         is_published = graphene.Boolean(required=False)
-    
+    @login_required 
     def mutate(self, info, post_id, content, is_published=None):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
@@ -211,6 +214,7 @@ class DeletePost(graphene.Mutation):
     class Arguments:
         post_id = graphene.UUID(required=True)
 
+    @login_required
     def mutate(self, info, post_id):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
@@ -231,6 +235,7 @@ class CreateInteration(graphene.Mutation):
         post_id = graphene.UUID(required=True)
         type = graphene.String(required=True)
 
+    @login_required
     def mutate(self, info, post_id, type):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
@@ -254,6 +259,8 @@ class DeleteInteraction(graphene.Mutation):
         post_id = graphene.UUID(required=True)
         type = graphene.String(required=True)
     
+
+    @login_required
     def mutate(self, info, post_id, type):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
@@ -276,6 +283,8 @@ class FollowUser(graphene.Mutation):
     class Arguments:
         username_to_follow = graphene.String(required=True)
     
+
+    @login_required
     def mutate(self, info, username_to_follow):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
@@ -299,6 +308,8 @@ class UnFollowUser(graphene.Mutation):
     class Arguments:
         username_to_unfollow = graphene.String(required=True)
     
+
+    @login_required
     def mutate(self, info, username_to_unfollow):
 
         user = info.context.user
