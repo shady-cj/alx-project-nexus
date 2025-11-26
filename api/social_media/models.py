@@ -43,6 +43,8 @@ class Post(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False)
+    edited = models.BooleanField(default=False)
+    deleted = models.BooleanField(default=False)
 
 
 class PostMedia(models.Model):
@@ -79,6 +81,16 @@ class Interaction(models.Model):
         constraints = [
             models.CheckConstraint(check=Q(type__in=['LIKE','SHARE','COMMENT']), name='valid_interaction_type'),
         ]
+    
+    def save(self, *args, **kwargs):
+        # Additional logic can be added here
+        if self.type == "LIKE":
+            # prevent duplicate likes by the same user on the same post
+            if Interaction.objects.filter(user=self.user, post=self.post, type="LIKE").exists():
+                raise ValueError("User has already liked this post.")
+            
+
+        super().save(*args, **kwargs)
 
 
 class Follow(models.Model):

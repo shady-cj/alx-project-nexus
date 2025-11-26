@@ -11,7 +11,7 @@ from django.utils import timezone
 
 
 class ProfileNode(DjangoObjectType):
-    mutual_followers = DjangoListField(lambda: ProfileNode)
+    mutual_followers = graphene.List(lambda: ProfileNode)
     class Meta:
         model = Profile
         fields = "__all__"
@@ -28,9 +28,9 @@ class ProfileNode(DjangoObjectType):
 
 
 class PostNode(DjangoObjectType):
-    media = DjangoListField(lambda: PostMediaNode) # lazy reference
-    engagements = DjangoListField(lambda: InteractionNode)
-    comments = DjangoListField(lambda: PostNode)
+    media = graphene.List(lambda: PostMediaNode) # lazy reference
+    engagements = graphene.List(lambda: InteractionNode)
+    comments = graphene.List(lambda: PostNode)
     class Meta:
         model = Post
         fields = "__all__"
@@ -85,9 +85,14 @@ class FollowNode(DjangoObjectType):
     followed_by = graphene.Field(ProfileNode)
     class Meta:
         model = Follow 
-        interfaces = [
-            graphene.relay.Node
-        ]
+        fields = ["id", "user", "followed_by"]
+        filter_fields = {
+            'user__username': ['exact', 'icontains'],
+            'followed_by__username': ['exact', 'icontains']
+        }
+        interfaces = (
+            graphene.relay.Node,
+        )
 
 
     def resolve_user(self, info):
@@ -96,6 +101,151 @@ class FollowNode(DjangoObjectType):
     def resolve_followed_by(self, info):
         return self.followed_by.profile
     
+
+class PostMediaInput(graphene.InputObjectType):
+    media_url = graphene.String(required=True)
+    type = graphene.String(required=True)
+    metadata = graphene.JSONString()
+    mime_type = graphene.String()
+
+
+
+class CreatePost(graphene.Mutation):
+    post = graphene.Field(PostNode)
+
+    class Arguments:
+        content = graphene.String(required=True)
+        is_published = graphene.Boolean(required=False)
+        parent_post_id = graphene.UUID(required=False)
+        post_medias = graphene.List(PostMediaInput)
+
+    def mutate(self, info, content, is_published=False, parent_post_id=None, post_medias=None):
+        user = info.context.user
+        if user.is_anonymous or not user.is_authenticated:
+            raise GraphQLError("Authentication required to create a post.")
+        try:
+            parent_post = Post.objects.get(id=parent_post_id) if parent_post_id else None
+        except Post.DoesNotExist:
+            raise GraphQLError("Parent post not found.")
+        post = Post.objects.create(content=content, author=user, is_published=is_published, parent_post=parent_post)
+
+        post = Post.objects.create(
+            content=content,
+            author=user,
+            is_published=is_published,
+            created_at=timezone.now()
+        )
+        if post_medias:
+            for media_input in post_medias:
+                PostMedia.objects.create(
+                    post=post,
+                    media_url=media_input.get("media_url"),
+                    type=media_input.get("type"),
+                    metadata=media_input.get("metadata"),
+                    mime_type=media_input.get("mime_type")
+                )
+        return CreatePost(post=post)
+
+
+class UpdatePost(graphene.Mutation):
+    post = graphene.Field(PostNode)
+
+    class Arguments:
+        post_id = graphene.UUID(required=True)
+        content = graphene.String(required=False)
+        is_published = graphene.Boolean(required=False)
+    
+    def mutate(self, info, post_id, content, is_published=None):
+        user = info.context.user
+        if user.is_anonymous or not user.is_authenticated:
+            raise GraphQLError("Authentication required to update a post.")
+        try:
+            post = Post.objects.get(id=post_id, author=user)
+        except Post.DoesNotExist:
+            raise GraphQLError("Post not found or you do not have permission to edit this post.")
+        
+        if content:
+            post.content = content
+        if is_published is not None:
+            post.is_published = is_published
+
+        post.edited = True
+        post.save()
+        return UpdatePost(post=post)
+    
+class DeletePost(graphene.Mutation):
+    success = graphene.Boolean()
+
+    class Arguments:
+        post_id = graphene.UUID(required=True)
+
+    def mutate(self, info, post_id):
+        user = info.context.user
+        if user.is_anonymous or not user.is_authenticated:
+            raise GraphQLError("Authentication required to delete a post.")
+        try:
+            post = Post.objects.get(id=post_id, author=user)
+        except Post.DoesNotExist:
+            raise GraphQLError("Post not found or you do not have permission to delete this post.")
+        
+        post.deleted = True
+        post.save()
+        return DeletePost(success=True)
+    
+class CreateInteration(graphene.Mutation):
+    interaction = graphene.Field(InteractionNode)
+
+    class Arguments:
+        post_id = graphene.UUID(required=True)
+        type = graphene.String(required=True)
+
+    def mutate(self, info, post_id, type):
+        user = info.context.user
+        if user.is_anonymous or not user.is_authenticated:
+            raise GraphQLError("Authentication required to interact with a post.")
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            raise GraphQLError("Post not found.")
+        
+        interaction = Interaction.objects.create(
+            user=user,
+            post=post,
+            type=type
+        )
+        return CreateInteration(interaction=interaction)
+
+class DeleteInteraction(graphene.Mutation):
+    success = graphene.Boolean()
+
+    class Arguments:
+        post_id = graphene.UUID(required=True)
+        type = graphene.String(required=True)
+    
+    def mutate(self, info, post_id, type):
+        user = info.context.user
+        if user.is_anonymous or not user.is_authenticated:
+            raise GraphQLError("Authentication required to delete an interaction.")
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            raise GraphQLError("Post not found.")
+        
+        try:
+            interaction = Interaction.objects.get(user=user, post=post, type=type)
+        except Interaction.DoesNotExist:
+            raise GraphQLError("Interaction not found.")
+        
+        interaction.delete()
+        return DeleteInteraction(success=True)
+
+
+class SocialMediaMutation(graphene.ObjectType):
+    create_post = CreatePost.Field()
+    update_post = UpdatePost.Field()
+    delete_post = DeletePost.Field()
+    create_interaction = CreateInteration.Field()
+    delete_interaction = DeleteInteraction.Field()    
 
 
 class SocialMediaQuery(graphene.ObjectType):
