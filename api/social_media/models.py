@@ -31,7 +31,17 @@ class Profile(models.Model):
         # )
         return Profile.objects.filter(
             user__followers__followed_by=self.user,
-            user__following__followed_by=self.user
+            user__following__user=self.user
+        )
+    
+    def get_followers(self):
+        return Profile.objects.filter(
+            user__following__user=self.user
+        )
+    
+    def get_following(self):
+        return Profile.objects.filter(
+            user__followers__followed_by=self.user
         )
 
 
@@ -39,12 +49,15 @@ class Post(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     content = models.TextField()
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="posts")
-    parent_post = models.ForeignKey("self", on_delete=models.CASCADE, related_name="comments")
+    parent_post = models.ForeignKey("self", on_delete=models.CASCADE, related_name="comments", null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False)
     edited = models.BooleanField(default=False)
     deleted = models.BooleanField(default=False) # soft delete flag
+
+    def likes(self):
+        return self.engagements.filter(type="LIKE").count()
 
 
 class PostMedia(models.Model):

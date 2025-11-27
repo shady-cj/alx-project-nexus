@@ -5,6 +5,7 @@ from .models import Profile, Post, PostMedia, Interaction, Follow
 from graphql import GraphQLError
 from django.utils import timezone
 from graphql_jwt.decorators import login_required
+from graphene.relay import Node
 
 from django.contrib.auth import get_user_model
 
@@ -15,7 +16,13 @@ User = get_user_model()
 
 
 class ProfileNode(DjangoObjectType):
+
+    """GraphQL node for Profile model with mutual followers field.
+    mutual_followers: List of ProfileNode representing users who mutually follow the profile owner.
+    """
     mutual_followers = graphene.List(lambda: ProfileNode)
+    followers = graphene.List(lambda: ProfileNode)
+    following = graphene.List(lambda: ProfileNode)
     class Meta:
         model = Profile
         fields = "__all__"
@@ -28,13 +35,27 @@ class ProfileNode(DjangoObjectType):
 
     def resolve_mutual_followers(self, info):
         return self.get_mutual_followers()
+    
+    def resolve_followers(self, info):
+        return self.get_followers()
+
+    def resolve_following(self, info):
+        return self.get_following()
 
 
 
 class PostNode(DjangoObjectType):
+    
+    """
+    GraphQL node for Post model with media, engagemenfts, and comments fields.
+    media: List of PostMediaNode representing media attachments for the post.
+    engagements: List of InteractionNode representing user interactions with the post.
+    comments: List of PostNode representing comments on the post.
+    """
     media = graphene.List(lambda: PostMediaNode) # lazy reference
     engagements = graphene.List(lambda: InteractionNode)
     comments = graphene.List(lambda: PostNode)
+    likes = graphene.Int()
     class Meta:
         model = Post
         fields = "__all__"
@@ -56,8 +77,19 @@ class PostNode(DjangoObjectType):
     def resolve_comments(self, info):
         return self.comments.all()
     
+    def resolve_likes(self, info):
+        return self.likes()
 
 class PostMediaNode(DjangoObjectType):
+
+    """
+    GraphQL node for PostMedia model.
+    media_url: URL of the media attachment.
+    type: Type of media (PHOTO, VIDEO, GIF).
+    metadata: Additional metadata for the media attachment.
+    mime_type: MIME type of the media attachment.  
+
+    """
     class Meta:
         model = PostMedia
         fields = "__all__"
@@ -71,6 +103,13 @@ class PostMediaNode(DjangoObjectType):
 
 
 class InteractionNode(DjangoObjectType):
+
+    """
+    GraphQL node for Interaction model.
+    type: Type of interaction (LIKE, SHARE, COMMENT).
+    user: ProfileNode representing the user who made the interaction.
+    post: PostNode representing the post that was interacted with.
+    """
     class Meta:
         model = Interaction
         fields = "__all__"
@@ -86,6 +125,12 @@ class InteractionNode(DjangoObjectType):
 
 
 class FollowNode(DjangoObjectType):
+    """
+    GraphQL node for Follow model.
+    user: ProfileNode representing the user being followed.
+    followed_by: ProfileNode representing the user who is following.
+    """
+
     user = graphene.Field(ProfileNode)
     followed_by = graphene.Field(ProfileNode)
     class Meta:
@@ -108,6 +153,14 @@ class FollowNode(DjangoObjectType):
     
 
 class PostMediaInput(graphene.InputObjectType):
+    """
+    PostMediaInput: Input type for creating PostMedia attachments.
+    media_url: URL of the media attachment.
+    type: Type of media (PHOTO, VIDEO, GIF).
+    metadata: Additional metadata for the media attachment.
+    mime_type: MIME type of the media attachment.
+
+    """
     media_url = graphene.String(required=True)
     type = graphene.String(required=True)
     metadata = graphene.JSONString()
@@ -115,6 +168,16 @@ class PostMediaInput(graphene.InputObjectType):
 
 
 class UpdateProfile(graphene.Mutation):
+
+    """
+    Mutation to update user profile information.
+    first_name: Updated first name of the user.
+    last_name: Updated last name of the user.
+    profile_photo: Updated profile photo URL.
+    bio: Updated biography of the user.
+    preferences: Updated user preferences in JSON format.
+
+    """
     profile = graphene.Field(ProfileNode)
 
     class Arguments:
@@ -146,17 +209,28 @@ class UpdateProfile(graphene.Mutation):
         return UpdateProfile(profile=profile)
 
 class CreatePost(graphene.Mutation):
+
+    """
+    GraphQL mutation to create a new post.
+    content: Content of the post.
+    is_published: Boolean indicating if the post is published.
+    parent_post_id: ID of the parent post if it's a comment.
+    post_medias: List of PostMediaInput for media attachments.
+    
+    """
     post = graphene.Field(PostNode)
 
     class Arguments:
         content = graphene.String(required=True)
         is_published = graphene.Boolean(required=False)
-        parent_post_id = graphene.UUID(required=False)
+        parent_post_id = graphene.ID(required=False)
         post_medias = graphene.List(PostMediaInput)
 
     @login_required
     def mutate(self, info, content, is_published=False, parent_post_id=None, post_medias=None):
         user = info.context.user
+        if parent_post_id:
+            _, parent_post_id = Node.from_global_id(parent_post_id)
         if user.is_anonymous or not user.is_authenticated:
             raise GraphQLError("Authentication required to create a post.")
         try:
@@ -164,13 +238,6 @@ class CreatePost(graphene.Mutation):
         except Post.DoesNotExist:
             raise GraphQLError("Parent post not found.")
         post = Post.objects.create(content=content, author=user, is_published=is_published, parent_post=parent_post)
-
-        post = Post.objects.create(
-            content=content,
-            author=user,
-            is_published=is_published,
-            created_at=timezone.now()
-        )
         if post_medias:
             for media_input in post_medias:
                 PostMedia.objects.create(
@@ -184,14 +251,24 @@ class CreatePost(graphene.Mutation):
 
 
 class UpdatePost(graphene.Mutation):
+
+    """
+    
+    Mutation to update an existing post.
+    post_id: ID of the post to be updated.
+    content: Updated content of the post.
+    is_published: Updated published status of the post.
+    """
     post = graphene.Field(PostNode)
 
     class Arguments:
-        post_id = graphene.UUID(required=True)
+        post_id = graphene.ID(required=True)
         content = graphene.String(required=False)
         is_published = graphene.Boolean(required=False)
+
     @login_required 
     def mutate(self, info, post_id, content, is_published=None):
+        _, post_id = Node.from_global_id(post_id) # decode the global ID to get the actual post ID (node, modeluuid)
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
             raise GraphQLError("Authentication required to update a post.")
@@ -210,16 +287,24 @@ class UpdatePost(graphene.Mutation):
         return UpdatePost(post=post)
     
 class DeletePost(graphene.Mutation):
+    """
+    GraphQL mutation to soft delete a post.
+    post_id: ID of the post to be deleted.
+    object is not permanently removed but marked as deleted.
+    after 30 days, a Celery task will permanently delete it.
+    """
     success = graphene.Boolean()
 
     class Arguments:
-        post_id = graphene.UUID(required=True)
+        post_id = graphene.ID(required=True)
 
     @login_required
     def mutate(self, info, post_id):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
             raise GraphQLError("Authentication required to delete a post.")
+
+        _, post_id = Node.from_global_id(post_id) # decode the global ID to get the actual post ID (node, modeluuid)
         try:
             post = Post.objects.get(id=post_id, author=user)
         except Post.DoesNotExist:
@@ -230,10 +315,16 @@ class DeletePost(graphene.Mutation):
         return DeletePost(success=True)
     
 class CreateInteration(graphene.Mutation):
+    """
+    GraphQL mutation to create an interaction on a post.
+    post_id: ID of the post to interact with.
+    type: Type of interaction (LIKE, SHARE, COMMENT).
+
+    """
     interaction = graphene.Field(InteractionNode)
 
     class Arguments:
-        post_id = graphene.UUID(required=True)
+        post_id = graphene.ID(required=True)
         type = graphene.String(required=True)
 
     @login_required
@@ -241,6 +332,7 @@ class CreateInteration(graphene.Mutation):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
             raise GraphQLError("Authentication required to interact with a post.")
+        _, post_id = Node.from_global_id(post_id) 
         try:
             post = Post.objects.get(id=post_id)
         except Post.DoesNotExist:
@@ -254,10 +346,21 @@ class CreateInteration(graphene.Mutation):
         return CreateInteration(interaction=interaction)
 
 class DeleteInteraction(graphene.Mutation):
+    """
+    GraphQL mutation to delete an interaction on a post.
+    post_id: ID of the post associated with the interaction.
+    type: Type of interaction to be deleted (LIKE, SHARE, COMMENT).
+
+    Deleting interaction here is only applicable to the following scenarios:
+    - A user wants to unlike a post they previously liked.
+    - A user wants delete a comment they previously made on a post.
+        -> Deleting a comment will involve deleting the post itself then deleting the interaction associated to the post under the interaction type comment
+
+    """
     success = graphene.Boolean()
 
     class Arguments:
-        post_id = graphene.UUID(required=True)
+        post_id = graphene.ID(required=True)
         type = graphene.String(required=True)
     
 
@@ -266,6 +369,8 @@ class DeleteInteraction(graphene.Mutation):
         user = info.context.user
         if user.is_anonymous or not user.is_authenticated:
             raise GraphQLError("Authentication required to delete an interaction.")
+        
+        _, post_id = Node.from_global_id(post_id)
         try:
             post = Post.objects.get(id=post_id)
         except Post.DoesNotExist:
@@ -280,6 +385,14 @@ class DeleteInteraction(graphene.Mutation):
         return DeleteInteraction(success=True)
     
 class FollowUser(graphene.Mutation):
+
+    """
+    GraphQL mutation to follow a user.
+    username_to_follow: Username of the user to follow.
+
+    The user cannot follow themself.
+
+    """
     success = graphene.Boolean()
     class Arguments:
         username_to_follow = graphene.String(required=True)
@@ -304,6 +417,11 @@ class FollowUser(graphene.Mutation):
 
 class UnFollowUser(graphene.Mutation):
 
+    """
+    GraphQL mutation to unfollow a user.
+    username_to_unfollow: Username of the user to unfollow.
+    The user cannot unfollow themself.
+    """
     success = graphene.Boolean()
 
     class Arguments:
@@ -377,7 +495,7 @@ class SocialMediaQuery(graphene.ObjectType):
     
     @login_required
     def resolve_all_posts(self, info, **kwargs):
-        return Post.objects.filter(deleted=False)
+        return Post.objects.filter(deleted=False, parent_post=None)
 
     @login_required
     def resolve_post(self, info, id):

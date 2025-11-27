@@ -22,12 +22,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-airr5xb1#8a@+y6zhv5x)l*%eb(gl%k1*mk$403rat8*w-ycw6'
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-airr5xb1#8a@+y6zhv5x)l*%eb(gl%k1*mk$403rat8*w-ycw6')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+
 
 
 # Application definition
@@ -52,7 +53,9 @@ INSTALLED_APPS = [
 
     'graphene_django', 
     'graphql_jwt.refresh_token.apps.RefreshTokenConfig',
-    'graphql_auth'
+    'graphql_auth',
+
+    'django_celery_beat'
 ]
 
 
@@ -67,7 +70,8 @@ GRAPHENE = {
 }
 GRAPHQL_JWT = {
     "JWT_VERIFY_EXPIRATION": True,
-
+    "JWT_AUTH_HEADER_PREFIX": "JWT",
+    "JWT_EXPIRATION_DELTA": timedelta(minutes=60),
     "JWT_LONG_RUNNING_REFRESH_TOKEN": True,
     "JWT_ALLOW_ANY_CLASSES": [
         "graphql_auth.mutations.Register",
@@ -87,8 +91,9 @@ GRAPHQL_AUTH = {
     "UPDATE_MUTATION_FIELDS": ["username"]
 }
 
-AUTHENTICATON_BACKENDS = [
-    "graphql_auth.backends.GraphQLAuthBackend"
+AUTHENTICATION_BACKENDS = [
+    "graphql_auth.backends.GraphQLAuthBackend",
+    "django.contrib.auth.backends.ModelBackend"
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -227,3 +232,56 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Celery Configuration
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/1')
+
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes, adjust per-task using @task(time_limit=)
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
+# For visibility: reduce prefetching so tasks are acknowledged fairly
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Optional: default queue
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+
+# Timezone handling
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+
+from celery.schedules import crontab
+
+
+CELERY_BEAT_SCHEDULE = {
+    'clean_up_deleted_posts': {
+        'task': 'social_media.tasks.clean_soft_deleted_posts',
+        'schedule': crontab(day_of_week='sun', hour=1, minute=0), # every Sunday at 1:00 AM
+    },
+}
+
+
+# # Logging Configuration
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'handlers': {
+#         'console': {
+#             'class': 'logging.StreamHandler',
+#         },
+#         'file': {
+#             'class': 'logging.FileHandler',
+#             'filename': BASE_DIR / 'logs' / 'django.log',
+#         },
+#     },
+#     'root': {
+#         'handlers': ['console', 'file'],
+#         'level': 'INFO',
+#     },
+# }
