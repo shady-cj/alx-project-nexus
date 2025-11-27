@@ -43,6 +43,7 @@ class PostNode(DjangoObjectType):
             'author__username': ['exact', 'icontains'],
             'is_published': ['exact'],
             'created_at': ['exact', 'lt', 'gt'],
+            'deleted': ['exact'],
         }
         interfaces = (graphene.relay.Node,)
     
@@ -364,3 +365,47 @@ class SocialMediaQuery(graphene.ObjectType):
 
     follow = graphene.relay.Node.Field(FollowNode)
     all_follows = DjangoFilterConnectionField(FollowNode)
+
+
+    @login_required
+    def resolve_profile(self, info, id):
+        return ProfileNode.get_node(info, id)
+
+    @login_required
+    def resolve_all_profiles(self, info, **kwargs):
+        return Profile.objects.all()
+    
+    @login_required
+    def resolve_all_posts(self, info, **kwargs):
+        return Post.objects.filter(deleted=False)
+
+    @login_required
+    def resolve_post(self, info, id):
+        return PostNode.get_node(inf, id)
+
+    @login_required
+    def resolve_all_interactions(self, info, **kwargs):
+        return Interaction.objects.select_related("post", "user").all()
+    
+    @login_required
+    def resolve_interaction(self, info, id):
+        return InteractionNode.get_node(info, id)
+
+
+    @login_required
+    def resolve_all_follows(self, info, **kwargs):
+        return Follow.objects.select_related("user__profile", "followed_by__profile").all()
+    
+    @login_required
+    def resolve_follow(self, info, id):
+        return FollowNode.get_node(info, id)
+    
+    @login_required
+    def resolve_all_post_media(self, info, **kwargs):
+        return PostMedia.objects.select_related("post").all()
+    
+    @login_required
+    def resolve_post_media(self, info, **kwargs):
+        return PostMediaNode.get_node(info, id)
+    
+
