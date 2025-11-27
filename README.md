@@ -247,6 +247,12 @@ docker-compose up --build
 - `type`: Enum (PHOTO, VIDEO, GIF)
 - `created_at`: Timestamp
 
+**Bookmark Model**
+- `id`: Unique identifier
+- `post`: Foreign key to post to bookmark
+- `owner`: Owner of bookmark
+- `bookmarked_on`: Date of bookmark
+
 ### Sample Queries & Mutations
 
 View the full API documentation in the GraphQL Playground at `/graphql`
@@ -260,7 +266,7 @@ query {
     author {
       username
     }
-    likesCount
+    likes
   }
 }
 ```
@@ -284,7 +290,7 @@ mutation {
 **Follow a user:**
 ```graphql
 mutation {
-  followUser(userId: 2) {
+  followUser(usernameToFollow: "test") {
     success
     message
   }
@@ -313,7 +319,7 @@ query {
 **Like a post:**
 ```graphql
 mutation {
-  likePost(postId: 1) {
+  createInteraction(postId: 1, type: "LIKE") {
     success
     message
   }
