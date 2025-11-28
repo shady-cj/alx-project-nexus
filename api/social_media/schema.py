@@ -8,6 +8,7 @@ from graphql_jwt.decorators import login_required
 from graphene.relay import Node
 
 from django.contrib.auth import get_user_model
+from .filters import BookmarkFilter, InteractionFilter, PostFilter, ProfileFilter
 
 
 User = get_user_model()
@@ -26,11 +27,7 @@ class ProfileNode(DjangoObjectType):
     class Meta:
         model = Profile
         fields = "__all__"
-        filter_fields = {
-            'first_name': ['exact', 'icontains', 'istartswith'],
-            'last_name': ['exact', 'icontains', 'istartswith'],
-            'user__username': ['exact', 'icontains'],
-        }
+        filterset_class = ProfileFilter
         interfaces = (graphene.relay.Node,)
 
     def resolve_mutual_followers(self, info):
@@ -59,13 +56,7 @@ class PostNode(DjangoObjectType):
     class Meta:
         model = Post
         fields = "__all__"
-        filter_fields = {
-            'content': ['exact', 'icontains', 'istartswith'],
-            'author__username': ['exact', 'icontains'],
-            'is_published': ['exact'],
-            'created_at': ['exact', 'lt', 'gt'],
-            'deleted': ['exact'],
-        }
+        filterset_class = PostFilter
         interfaces = (graphene.relay.Node,)
     
     def resolve_media(self, info):
@@ -113,12 +104,7 @@ class InteractionNode(DjangoObjectType):
     class Meta:
         model = Interaction
         fields = "__all__"
-        filter_fields = {
-            'type': ['exact'],
-            'user__username': ['exact', 'icontains'],
-            'post__id': ['exact'],
-            'created_at': ['exact', 'lt', 'gt'],
-        }
+        filterset_class = InteractionFilter
         interfaces = (graphene.relay.Node,)
 
         
@@ -153,15 +139,15 @@ class FollowNode(DjangoObjectType):
     
 
 class BookmarkNode(DjangoObjectType):
+    """
+    Bookmark Node for bookmark object
+    """
     class Meta:
         model = Bookmark 
         fields = "__all__"
-        filter_fields = {
-            "user__username": ['iexact', 'icontains'],
-            "post__id": ['exact']
-        }
+        filterset_class = BookmarkFilter
         interfaces = (
-            graphene.relay.Node
+            graphene.relay.Node,
         )
 
 
