@@ -14,6 +14,8 @@ class PostFilter(filters.FilterSet):
         model = Post
         fields = {
             'author__username': ['exact', 'icontains'],
+            'content': ['exact', 'icontains', 'istartswith'],
+            'parent_post__id': ['exact'],
             'is_published': ['exact'],
             'created_at': ['exact', 'lt', 'gt'],
             'updated_at': ['exact', 'lt', 'gt'],
@@ -31,6 +33,11 @@ class ProfileFilter(filters.FilterSet):
 
 
 class InteractionFilter(filters.FilterSet):
+    order_by = filters.OrderingFilter(
+        fields=( 
+                ('created_at', 'created_at'),
+        )
+    )
     class Meta:
         model = Interaction
         fields = {
@@ -58,7 +65,7 @@ class FollowFilter(filters.FilterSet):
 class BookmarkFilter(filters.FilterSet):
     order_by = filters.OrderingFilter(
         fields=( 
-                ('created_at', 'bookmarked_at'),
+                ('bookmarked_at', 'bookmarked_at'),
         )
     )
     class Meta:
@@ -66,5 +73,5 @@ class BookmarkFilter(filters.FilterSet):
         fields = {
             'user__username': ['exact', 'icontains'],
             'post__id': ['exact'],
-            'created_at': ['exact', 'lt', 'gt'],
+            'bookmarked_at': ['exact', 'lt', 'gt'],
         }

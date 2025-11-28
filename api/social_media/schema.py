@@ -24,6 +24,8 @@ class ProfileNode(DjangoObjectType):
     mutual_followers = graphene.List(lambda: ProfileNode)
     followers = graphene.List(lambda: ProfileNode)
     following = graphene.List(lambda: ProfileNode)
+    bookmarks = graphene.List(lambda: BookmarkNode)
+
     class Meta:
         model = Profile
         fields = "__all__"
@@ -38,6 +40,9 @@ class ProfileNode(DjangoObjectType):
 
     def resolve_following(self, info):
         return self.get_following()
+    
+    def resolve_bookmarks(self, info):
+        return Bookmark.objects.filter(user=self.user)
 
 
 
@@ -53,6 +58,7 @@ class PostNode(DjangoObjectType):
     engagements = graphene.List(lambda: InteractionNode)
     comments = graphene.List(lambda: PostNode)
     likes = graphene.Int()
+    bookmarks = graphene.Int()
     class Meta:
         model = Post
         fields = "__all__"
@@ -71,6 +77,9 @@ class PostNode(DjangoObjectType):
     def resolve_likes(self, info):
         return self.likes()
 
+    def resolve_bookmarks(self, info):
+        return self.bookmarks()
+    
 class PostMediaNode(DjangoObjectType):
 
     """

@@ -58,6 +58,9 @@ class Post(models.Model):
 
     def likes(self):
         return self.engagements.filter(type="LIKE").count()
+    
+    def bookmarks(self):
+        return self.post_bookmarks.count()
 
 
 class PostMedia(models.Model):
@@ -110,7 +113,7 @@ class Interaction(models.Model):
 class Bookmark(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookmarks")
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="post_bookmarks")
     bookmarked_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
