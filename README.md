@@ -37,6 +37,7 @@ This project was developed as part of the **ProDev Backend Engineering program**
 - **Database Design**: Normalized schema design for posts, users, and interactions with proper indexing strategies
 - **Asynchronous Programming**: Handling concurrent user interactions efficiently
 - **Caching Strategies**: Optimizing frequently accessed data (post feeds, user profiles)
+- **API Pagination**: paginate queries to improve api performance
 - **API Design Patterns**: GraphQL schema design for flexible client requirements
 - **Query Optimization**: N+1 query prevention and database performance tuning
 
