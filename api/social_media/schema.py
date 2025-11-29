@@ -6,6 +6,7 @@ from graphql import GraphQLError
 from django.utils import timezone
 from graphql_jwt.decorators import login_required
 from graphene.relay import Node
+from .utils import node_resolver
 
 from django.contrib.auth import get_user_model
 from .filters import BookmarkFilter, InteractionFilter, PostFilter, ProfileFilter
@@ -536,7 +537,8 @@ class SocialMediaMutation(graphene.ObjectType):
 
 
 class SocialMediaQuery(graphene.ObjectType):
-    profile = graphene.relay.Node.Field(ProfileNode)
+    # profile = graphene.relay.Node.Field(ProfileNode) # this bypasses authentication. The custom resolver doesn't get called
+    profile = graphene.Field(ProfileNode, id=graphene.ID(required=True))
     all_profiles = DjangoFilterConnectionField(ProfileNode)
 
     post = graphene.relay.Node.Field(PostNode)
@@ -559,29 +561,30 @@ class SocialMediaQuery(graphene.ObjectType):
 
     @login_required
     def resolve_profile(self, info, id):
-        return ProfileNode.get_node(info, id)
+        return node_resolver(ProfileNode, info, id)
 
     @login_required
     def resolve_all_profiles(self, info, **kwargs):
+        print("all body")
         return Profile.objects.all()
     
     @login_required
     def resolve_all_posts(self, info, **kwargs):
-        return Post.objects.filter(deleted=False, parent_post=None)
+        return Post.objects.prefetch_related("post_bookmarks", "engagements", "comments", "attachments").select_related("author__profile").filter(deleted=False, parent_post=None)
     
 
     @login_required
     def resolve_all_posts_including_comments(self, info, **kwargs):
-        return Post.objects.filter(deleted=False)
+        return Post.objects.prefetch_related("post_bookmarks", "engagements", "comments", "attachments").select_related("author__profile").filter(deleted=False)
     
 
     @login_required
     def resolve_all_deleted_posts(self, info, **kwargs):
-        return Post.objects.filter(deleted=True)
+        return Post.objects.prefetch_related("post_bookmarks", "engagements", "comments", "attachments").select_related("author__profile").filter(deleted=True)
 
     @login_required
     def resolve_post(self, info, id):
-        return PostNode.get_node(inf, id)
+        return node_resolver(PostNode, info, id)
 
     @login_required
     def resolve_all_interactions(self, info, **kwargs):
@@ -589,7 +592,7 @@ class SocialMediaQuery(graphene.ObjectType):
     
     @login_required
     def resolve_interaction(self, info, id):
-        return InteractionNode.get_node(info, id)
+        return node_resolver(InteractionNode, info, id)
 
 
     @login_required
@@ -598,21 +601,21 @@ class SocialMediaQuery(graphene.ObjectType):
     
     @login_required
     def resolve_follow(self, info, id):
-        return FollowNode.get_node(info, id)
+        return node_resolver(FollowNode, info, id)
     
     @login_required
     def resolve_all_post_media(self, info, **kwargs):
         return PostMedia.objects.select_related("post").all()
     
     @login_required
-    def resolve_post_media(self, info, **kwargs):
-        return PostMediaNode.get_node(info, id)
+    def resolve_post_media(self, info, id):
+        return node_resolver(PostMediaNode, info, id)
     
     @login_required
-    def resolve_bookmark(self, info, **kwargs):
+    def resolve_bookmark(self, info, id):
         user = info.context.user
 
-        bookmark =  BookmarkNode.get_node(info, id)
+        bookmark = node_resolver(BookmarkNode, info, id)
         if user != bookmark.user:
             raise GraphQLError("You don't have permission to view this bookmark")
         return bookmark
